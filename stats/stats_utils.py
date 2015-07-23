@@ -1,3 +1,7 @@
+import urllib.request
+import json
+from datetime import date
+from stats.models import *
 #Utility methods primarily used for seed the database
 
 def get_team_info_from_web(team_id):
@@ -9,7 +13,7 @@ def get_team_info_from_web(team_id):
     return data['resultSets'][0]['rowSet'][0]
 
 def create_team_from_web(t_id):
-    info = self.get_team_info_from_web(team_id=t_id)
+    info = get_team_info_from_web(team_id=t_id)
     team = Team(team_id=info[0], team_city=info[2], team_name=info[3],
     			 team_abbreviation = info[4], team_conference=info[5], 
     			 team_division=info[6], team_code=info[7],wins=info[8],
@@ -29,8 +33,8 @@ def convert_datetime_string_to_date_instance(date_string):
     return date(int(vals[0]),int(vals[1]),int(vals[2]))
 
 def sanitize_player_data(to_fix):
-    to_fix[6] = self.convert_datetime_string_to_date_instance(to_fix[6])
-    to_fix[10] = self.convert_height_to_int(to_fix[10])
+    to_fix[6] =convert_datetime_string_to_date_instance(to_fix[6])
+    to_fix[10] = convert_height_to_int(to_fix[10])
     print("Player id = %s" %to_fix[0])
     print("Player name: %s" %to_fix[3])
     if not to_fix[7]:
@@ -65,13 +69,103 @@ def get_player_info_from_web(player_id):
     return data['resultSets'][0]['rowSet'][0]
 
 def create_player_from_web(p_id):
-    info = self.sanitize_player_data(self.get_player_info_from_web(player_id=p_id))
+    info = sanitize_player_data(get_player_info_from_web(player_id=p_id))
     for i in info:
         print("Type: %s Val: %s" %(type(i), i))
     team = Team.objects.get(team_id=info[16])
 
     player = Player(player_id=info[0],first_name=info[1],last_name=info[2], display_first_last=info[3],display_last_comma_first=info[4],display_fi_last=info[5],birthdate=info[6],
                     school=info[7],country=info[8],last_affiliation=info[9], height=info[10],weight=info[11],season_exp=info[12],jersey=info[13],
-                    position=info[14],roster_status=info[15],team_id=team,team_name=info[17],team_abbreviation=info[18],team_code=info[19],team_city=info[20],playercode=info[21],from_year=info[22],
+                    position=info[14],roster_status=info[15],team=team,team_name=info[17],team_abbreviation=info[18],team_code=info[19],team_city=info[20],playercode=info[21],from_year=info[22],
                     to_year=info[23])
     player.save()
+
+    def make_season_int(season):
+     if type(season) == str:
+          return int(season.split("-")[0])
+     else:
+          return season
+
+def make_season_str(year):
+    if year == 1999:
+        return "1999-00"
+    suf = int(str(year)[2:])
+    suf += 1
+    if 2000 <= year <= 2008:
+        return "%s-%s" %(str(year),str(suf).rjust(2,'0'))
+    return "%s-%s" %(str(year),str(suf))
+
+def get_player_age(player,year):
+     return year - player.birthdate.year
+
+def convert_dict_keys_to_lowercase(data):
+    ret_dict = {}
+    for k,v in data.items():
+        if (not k == "GROUP_SET") and (not k== "GROUP_VALUE") and (not k== "CFID") and (not k== "CFPARAMS"): 
+            ret_dict[k.lower()] = v
+    return ret_dict
+
+def standardize_player_data(data,player,adv_flag=False):
+    seasons_list = []
+    hdrs = data['headers']
+    plr_name = Player.objects.get(player_id = player.player_id).display_first_last
+    if adv_flag:
+        #It turns out that the row set is a list that contains a single list
+        d = dict(zip(hdrs,data['rowSet'][0]))
+        #Here is where we need to set missing fields
+        d['PLAYER_ID'] = player.player_id
+        d['PLAYER_NAME'] = plr_name
+        d['SEASON_ID'] = make_season_int(d['GROUP_VALUE'])
+        d['PLAYER_AGE'] = get_player_age(player=player, year = d['SEASON_ID'])
+        d['CAREER_FLAG'] = False
+        seasons_list.append(convert_dict_keys_to_lowercase(d))
+    if data['rowSet']:
+        for s in data['rowSet']:
+            d = dict(zip(hdrs,s))
+            d['PLAYER_NAME'] = plr_name
+            if "Career" in data['name']:
+                d['SEASON_ID'] = 0
+                d['TEAM_ABBREVIATION'] = Team.objects.get(team_id = d['TEAM_ID']).team_abbreviation
+                d['CAREER_FLAG'] = True
+            else:
+                d['CAREER_FLAG'] = False
+                d['SEASON_ID'] = make_season_int(d['SEASON_ID'])
+            if "Regular" in data['name']:
+                d['SEASON_TYPE'] = "regular"
+            elif "Post" in data['name']:
+                d['SEASON_TYPE'] = "post"
+            elif "AllStar" in data['name']:
+                d['SEASON_TYPE'] = "all_star"
+            seasons_list.append(convert_dict_keys_to_lowercase(d))
+     #We now have a list of dicts that each specify a season
+    return seasons_list
+
+def standardize_team_data(data, season_type,year):
+    seasons_list = []
+    hdrs = data['headers']
+    if data['rowSet']:
+        for s in data['rowSet']:
+            d = dict(zip(hdrs,s))
+            d['SEASON_TYPE'] = season_type
+            d['SEASON_ID'] = year
+            seasons_list.append(convert_dict_keys_to_lowercase(d))
+    return seasons_list
+
+def create_player_season(split, data):
+    if split == "PerGame":
+        s = PlayerPerGameSeason(**data)
+    elif split == "Totals":
+        s = PlayerTotalSeason(**data)
+    elif split == "Advanced":
+        s = PlayerAdvancedSeason(**data)
+    s.save()
+
+def create_team_season(split, data):
+    if split == "PerGame":
+        s = TeamPerGameSeason(**data)
+    elif split == "Totals":
+        s = TeamTotalSeason(**data)
+    elif split == "Advanced":
+        s = TeamAdvancedSeason(**data)
+    print(data)
+    s.save()

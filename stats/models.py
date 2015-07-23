@@ -85,21 +85,6 @@ class Coach(models.Model):
     class Meta:
     	db_table = 'coach'
 
-class Referee(models.Model):
-    ref_id = models.CharField(max_length=20)
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
-    ref_name = models.CharField(max_length=201)
-    birthdate = models.DateField()
-    school = models.CharField(max_length=100)
-    jersey = models.IntegerField()
-
-    def __str__(self):
-        return self.ref_name
-
-    class Meta:
-    	db_table = 'referees'
-
 class PlayerSeason(models.Model):
     player = models.ForeignKey(Player)
     #Value of 0 indicates Career Totals
