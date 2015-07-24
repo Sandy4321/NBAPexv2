@@ -1,3 +1,4 @@
+import logging
 from django.shortcuts import render_to_response
 from datetime import date
 import urllib.request
@@ -6,6 +7,8 @@ from bs4 import BeautifulSoup as bs
 from stats.models import *
 from stats.stats_utils import *
 # Create your views here.
+
+log = logging.getLogger(__name__)
 
 def seed_teams():
 	#Need to check this range
@@ -18,7 +21,7 @@ def seed_players():
     str_response = response.readall().decode('utf-8')
     data = json.loads(str_response)
     info = data['resultSets'][0]['rowSet']
-    i=0
+    i=1047
     for index in range(i,len(info)):
         create_player_from_web(p_id = info[index][0])
         print(i)
@@ -55,25 +58,25 @@ def seed_player_advanced(player):
 
     return all_seasons
 
-def seed_player_seasons_data(player_id, split):
+def seed_player_seasons_data(player, split):
     if split == "Advanced":
         all_seasons = seed_player_advanced(player_id)
     else:
-        print("player_id: %s" %player_id)
-        url = "http://stats.nba.com/stats/playercareerstats?LeagueID=00&PerMode=%s&PlayerID=%s" %(split,player_id)
+        url = "http://stats.nba.com/stats/playercareerstats?LeagueID=00&PerMode=%s&PlayerID=%s" %(split,player.player_id)
         response = urllib.request.urlopen(url)
         str_response = response.readall().decode('utf-8')
         data = json.loads(str_response)
         
-        reg_seasons = standardize_player_data(data['resultSets'][0],player=player_id)
-        career_reg_season = standardize_player_data(data['resultSets'][1],player=player_id)
-        post_seasons = standardize_player_data(data['resultSets'][2],player=player_id)
-        career_post_season = standardize_player_data(data['resultSets'][3],player=player_id)
-        all_star_seasons = standardize_player_data(data['resultSets'][4],player=player_id)
-        career_as_season = standardize_player_data(data['resultSets'][5],player=player_id)
+        reg_seasons = standardize_player_data(data['resultSets'][0],player=player)
+        career_reg_season = standardize_player_data(data['resultSets'][1],player=player)
+        post_seasons = standardize_player_data(data['resultSets'][2],player=player)
+        career_post_season = standardize_player_data(data['resultSets'][3],player=player)
+        all_star_seasons = standardize_player_data(data['resultSets'][4],player=player)
+        career_as_season = standardize_player_data(data['resultSets'][5],player=player)
         all_seasons = reg_seasons + career_reg_season + post_seasons + career_post_season + all_star_seasons + career_as_season
         
         for s in all_seasons:
+            log.debug(s)
             create_player_season(split, s)
 
 def seed_team_seasons_data(split):
@@ -92,16 +95,17 @@ def seed_team_seasons_data(split):
 
 def seed_individuals(request):
     #seed_teams()
-    seed_players()
-    seed_coaches()
+    #seed_players()
+    #seed_coaches()
     return render_to_response('seed_individuals.html')
 
 def seed_player_seasons(request):
     players = Player.objects.all()
     for p in players:
-        seed_player_seasons_data(p.player_id,"PerGame")
-        seed_player_seasons_data(p.player_id,"Totals")
-        seed_player_seasons_data(p.player_id,"Advanced")
+        log.debug("Creating seasons for %s" %p.display_first_last)
+        seed_player_seasons_data(p,"PerGame")
+        seed_player_seasons_data(p,"Totals")
+        seed_player_seasons_data(p,"Advanced")
     return render_to_response('seed_player_seasons.html')
 
 def seed_team_seasons(request):

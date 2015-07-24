@@ -15,9 +15,11 @@ Including another URLconf
 """
 from django.conf.urls import include, url
 from django.contrib import admin
-from stats.views import seed_individuals
+from stats.views import seed_individuals, seed_player_seasons, seed_team_seasons
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
     url(r'^seed_individuals/', seed_individuals),
+    url(r'^seed_player_seasons/',seed_player_seasons),
+    url(r'^seed_team_seasons/',seed_team_seasons),
 ]

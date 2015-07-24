@@ -16,6 +16,7 @@ class Team(models.Model):
     div_rank = models.IntegerField()
     min_year = models.IntegerField()
     max_year = models.IntegerField()
+    #active_flag = models.BooleanField(default = True)
 
     def __str__(self):
         return "%s %s" %(self.team_city, self.team_name)
@@ -25,13 +26,13 @@ class Team(models.Model):
 
 
 class Player(models.Model):
-    player_id = models.IntegerField()
+    player_id = models.IntegerField(unique = True)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     display_first_last = models.CharField(max_length=201)
     display_last_comma_first = models.CharField(max_length=202)
     display_fi_last = models.CharField(max_length=102)
-    birthdate = models.DateField()
+    birthdate = models.DateField(null=True)
     school = models.CharField(max_length=200,null=True)
     country = models.CharField(max_length=200,null=True)
     last_affiliation = models.CharField(max_length=200,null=True)
@@ -63,7 +64,7 @@ class Coach(models.Model):
     coach_id = models.CharField(max_length=50)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
-    coach_name = models.CharField(max_length=201)
+    display_first_last = models.CharField(max_length=201)
     from_year = models.IntegerField(default=2015)
     to_year = models.IntegerField(default=2015)
     years = models.IntegerField(default=0)
@@ -83,7 +84,8 @@ class Coach(models.Model):
         return self.coach_name
 
     class Meta:
-    	db_table = 'coach'
+        db_table = 'coach'
+        verbose_name_plural = 'coaches'
 
 class PlayerSeason(models.Model):
     player = models.ForeignKey(Player)
@@ -100,7 +102,8 @@ class PlayerSeason(models.Model):
     gs = models.IntegerField(default=0)
     w = models.IntegerField(default=0)
     l = models.IntegerField(default=0)
-    w_pct = models.DecimalField(max_digits=4,decimal_places=3)
+    w_pct = models.DecimalField(max_digits=4,decimal_places=3,null = True)
+    league_id = models.IntegerField(default = 0)
 
     class Meta:
         abstract = True
@@ -122,14 +125,14 @@ class PlayerPerGameSeason(PlayerSeason):
     ast = models.DecimalField(max_digits=3,decimal_places=1)
     stl = models.DecimalField(max_digits=3,decimal_places=1)
     blk = models.DecimalField(max_digits=3,decimal_places=1)
-    blka = models.DecimalField(max_digits=3,decimal_places=1)
+    blka = models.DecimalField(max_digits=3,decimal_places=1,null = True)
     tov = models.DecimalField(max_digits=3,decimal_places=1)
     pf = models.DecimalField(max_digits=3,decimal_places=1)
-    pfd = models.DecimalField(max_digits=3,decimal_places=1)
+    pfd = models.DecimalField(max_digits=3,decimal_places=1,null = True)
     pts = models.DecimalField(max_digits=3,decimal_places=1)
-    plus_minus = models.DecimalField(max_digits=3,decimal_places=1)
-    dd2 = models.IntegerField(default=0)
-    td3 = models.IntegerField(default=0)
+    plus_minus = models.DecimalField(max_digits=3,decimal_places=1,null = True)
+    dd2 = models.IntegerField(default=0,null = True)
+    td3 = models.IntegerField(default=0,null = True)
 
     class Meta:
     	db_table = 'player_per_game_season'
@@ -151,21 +154,21 @@ class PlayerTotalSeason(PlayerSeason):
     ast = models.IntegerField()
     stl = models.IntegerField()
     blk = models.IntegerField()
-    blka = models.IntegerField()
+    blka = models.IntegerField(null = True)
     tov = models.IntegerField()
     pf = models.IntegerField()
-    pfd = models.IntegerField()
+    pfd = models.IntegerField(null = True)
     pts = models.IntegerField()
     plus_minus = models.IntegerField()
-    dd2 = models.IntegerField(default=0)
-    td3 = models.IntegerField(default=0)
+    dd2 = models.IntegerField(default=0,null = True)
+    td3 = models.IntegerField(default=0,null = True)
 
     class Meta:
     	db_table = 'player_total_season'
 
 class PlayerAdvancedSeason(PlayerSeason):
     min = models.IntegerField()
-    u_per = models.DecimalField(max_digits=3,decimal_places=1)
+    u_per = models.DecimalField(max_digits=3,decimal_places=1,null = True)
     per = models.DecimalField(max_digits=3,decimal_places=1)
     ts_pct = models.DecimalField(max_digits=4,decimal_places=3)
     fg3_ar = models.DecimalField(max_digits=3,decimal_places=3)
